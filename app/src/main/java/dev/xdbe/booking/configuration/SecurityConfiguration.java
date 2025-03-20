@@ -25,20 +25,36 @@ import static org.springframework.security.config.Customizer.withDefaults;
 public class SecurityConfiguration {
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
             .authorizeHttpRequests(auth -> auth
-                // Step 3: add authorization
-                .anyRequest().permitAll()
+                .requestMatchers("/dashboard").hasRole("ADMIN")
+                .requestMatchers("/", "/book").permitAll()
+                .anyRequest().authenticated()
             )
-            // Step 3: Add login form
-            .csrf((csrf) -> csrf
-                .ignoringRequestMatchers("/h2-console/*")
-            )
+            .formLogin(withDefaults())
+            .logout(logout -> logout.logoutSuccessUrl("/"))
+            .csrf(csrf -> csrf.ignoringRequestMatchers("/h2-console/**"))
             .headers(headers -> headers.frameOptions().disable())
             .build();
     }
 
+
     // Step 3: add InMemoryUserDetailsManager
+    @Bean
+    public UserDetailsService users() {
+        UserDetails admin = User.builder()
+            .username("admin")
+            .password("{bcrypt}$2a$10$9y7KPS9F4aY5E.u5XflfNOKqRQ3zFACX.5iE1pU/zBi1DgH7zQ4IG")
+            .roles("ADMIN")
+            .build();
+
+        UserDetails user = User.builder()
+            .username("user")
+            .password("{bcrypt}$2a$10$9y7KPS9F4aY5E.u5XflfNOKqRQ3zFACX.5iE1pU/zBi1DgH7zQ4IG")
+            .roles("USER")
+            .build();
+        return new InMemoryUserDetailsManager(admin, user);
+    }
 
 }
