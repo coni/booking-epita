@@ -33,14 +33,13 @@ on:
 
 jobs:
   osv-scan:
+    name: osv-scan
     runs-on: ubuntu-latest
     steps:
-         ref: ${{ inputs.ref }}
-      - name: "Run scanner"
-        uses: google/osv-scanner-action/osv-scanner-action@8dded7155905cd666190a12dc9997000e58d163d # v2.0.2
+      - name: "OSV scanner"
+        uses: google/osv-scanner-action/osv-scanner-action@v2.0.2
         with:
-          scan-args: |-
-            --output=${{ inputs.matrix-property }}results.json
-            --format=json
-            ${{ inputs.scan-args }}
+          scan-args: |
+            --output=osv.sarif
+            --format=sarif
         continue-on-error: true
