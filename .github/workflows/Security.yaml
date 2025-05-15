@@ -24,6 +24,12 @@ permissions:
 on:
   schedule:
   - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'test'
+        required: false
+        default: 'test'
 
 jobs:
   osv-scan:
