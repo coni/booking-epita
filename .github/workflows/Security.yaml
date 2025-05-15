@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Performs a vulnerability scan with OSV-Scanner and reports the result.
-name: OSV-Scanner single vulnerability scan
+name: Security
 
 permissions:
   # Required to upload SARIF file to CodeQL. See: https://github.com/github/codeql-action/issues/2117
@@ -22,44 +22,8 @@ permissions:
   security-events: write
 
 on:
-  workflow_call:
-    inputs:
-      scan-args:
-        description: "Custom osv-scanner arguments (See https://google.github.io/osv-scanner/usage/ for options, you cannot set --format or --output)"
-        type: string
-        default: |-
-          -r
-          ./
-      results-file-name:
-        description: "File name of the result SARIF file"
-        type: string
-        default: results.sarif
-      download-artifact:
-        description: "Optional artifact to download for scanning"
-        required: false
-        default: ""
-        type: string
-      upload-sarif:
-        description: "Whether to upload to Security > Code Scanning"
-        type: boolean
-        required: false
-        default: true
-      fail-on-vuln:
-        description: "Whether to fail the action on vulnerability found"
-        type: boolean
-        default: true
-      matrix-property:
-        description: "Optional string for matrix strategies (E.g. 'amd64-')"
-        type: string
-        default: ""
-      checkout-submodules:
-        description: "Whether to check out submodules or not. Passed on to `submodules` argument of `actions/checkout`"
-        type: boolean
-        default: false
-      ref:
-        description: "Whether to checkout a custom branch/tag/commit for scanning other than the default branch"
-        type: string
-        default: ""
+  schedule:
+  - cron: '0 0 * * *'
 
 jobs:
   osv-scan:
