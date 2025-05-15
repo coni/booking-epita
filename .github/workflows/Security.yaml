@@ -35,17 +35,7 @@ jobs:
   osv-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          persist-credentials: false
-          submodules: ${{ inputs.checkout-submodules }}
-          ref: ${{ inputs.ref }}
-      - name: "Download custom artifact if specified"
-        uses: actions/download-artifact@v4
-        if: "${{ inputs.download-artifact != '' }}"
-        with:
-          name: "${{ inputs.download-artifact }}"
-          path: "./"
+         ref: ${{ inputs.ref }}
       - name: "Run scanner"
         uses: google/osv-scanner-action/osv-scanner-action@8dded7155905cd666190a12dc9997000e58d163d # v2.0.2
         with:
@@ -54,32 +44,3 @@ jobs:
             --format=json
             ${{ inputs.scan-args }}
         continue-on-error: true
-      - name: "Run osv-scanner-reporter"
-        uses: google/osv-scanner-action/osv-reporter-action@8dded7155905cd666190a12dc9997000e58d163d # v2.0.2
-        with:
-          scan-args: |-
-            --output=${{ inputs.matrix-property }}${{ inputs.results-file-name }}
-            --new=${{ inputs.matrix-property }}results.json
-            --gh-annotations=false
-            --fail-on-vuln=${{ inputs.fail-on-vuln }}
-      # Upload the results as artifacts (optional). Commenting out will disable uploads of run results in SARIF
-      # format to the repository Actions tab.
-      - name: "Upload artifact"
-        id: "upload_artifact"
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: ${{ inputs.matrix-property }}SARIF file
-          path: ${{ inputs.matrix-property }}${{ inputs.results-file-name }}
-          retention-days: 5
-      # Upload the results to GitHub's code scanning dashboard.
-      - name: "Upload to code-scanning"
-        if: "${{ !cancelled() && inputs.upload-sarif == true }}"
-        uses: github/codeql-action/upload-sarif@45775bd8235c68ba998cffa5171334d58593da47 # v3.28.15
-        with:
-          sarif_file: ${{ inputs.matrix-property }}${{ inputs.results-file-name }}
-      - name: "Error troubleshooter"
-        if: ${{ always() && steps.upload_artifact.outcome == 'failure' }}
-        run: |
-          echo "::error::Artifact upload failed. This is most likely caused by a error during scanning earlier in the workflow."
-          exit 1
