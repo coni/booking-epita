@@ -1,0 +1,55 @@
+name: Security
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  osv-scan:
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    name: OSV Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: "Run OSV scanner"
+        uses: google/osv-scanner-action/osv-scanner-action@v2.0.2
+        with:
+          scan-args: |
+            --lockfile=app/gradle.lockfile
+            --output=osv.sarif
+            --format=sarif
+        continue-on-error: true
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: osv.sarif
+
+  hihi:
+    permissions:
+      security-events: write
+    runs-on: ubuntu-latest
+    name: hihi
+    container:
+      image: returntocorp/semgrep
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        run: semgrep --config=p/java --sarif --output=semgrep.sarif
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+
+
