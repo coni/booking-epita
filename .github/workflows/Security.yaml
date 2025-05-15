@@ -16,6 +16,7 @@ jobs:
         uses: google/osv-scanner-action/osv-scanner-action@v2.0.2
         with:
           scan-args: |
+            --lockfile=app/gradle.lockfile
             --output=osv.sarif
             --format=sarif
         continue-on-error: true
