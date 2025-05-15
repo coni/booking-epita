@@ -7,6 +7,8 @@ on:
 
 jobs:
   osv-scan:
+    permissions:
+      security-events: write
     name: osv-scan
     runs-on: ubuntu-latest
     steps:
