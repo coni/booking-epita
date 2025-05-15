@@ -27,5 +27,3 @@ jobs:
     needs:
       - osv-scan
     # Your actual release steps
-    steps:
-      ...
