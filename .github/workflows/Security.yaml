@@ -1,21 +1,115 @@
-name: OSV-Scanner Scheduled Scan
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-on:
-  schedule:
-    - cron: "30 12 * * 1"
-  # Change "main" to your default branch if you use a different name, i.e. "master"
-  push:
-    branches: [main]
+# Performs a vulnerability scan with OSV-Scanner and reports the result.
+name: OSV-Scanner single vulnerability scan
 
 permissions:
   # Required to upload SARIF file to CodeQL. See: https://github.com/github/codeql-action/issues/2117
   actions: read
-  # Require writing security events to upload SARIF file to security tab
-  security-events: write
-  # Only need to read contents
   contents: read
+  security-events: write
+
+on:
+  workflow_call:
+    inputs:
+      scan-args:
+        description: "Custom osv-scanner arguments (See https://google.github.io/osv-scanner/usage/ for options, you cannot set --format or --output)"
+        type: string
+        default: |-
+          -r
+          ./
+      results-file-name:
+        description: "File name of the result SARIF file"
+        type: string
+        default: results.sarif
+      download-artifact:
+        description: "Optional artifact to download for scanning"
+        required: false
+        default: ""
+        type: string
+      upload-sarif:
+        description: "Whether to upload to Security > Code Scanning"
+        type: boolean
+        required: false
+        default: true
+      fail-on-vuln:
+        description: "Whether to fail the action on vulnerability found"
+        type: boolean
+        default: true
+      matrix-property:
+        description: "Optional string for matrix strategies (E.g. 'amd64-')"
+        type: string
+        default: ""
+      checkout-submodules:
+        description: "Whether to check out submodules or not. Passed on to `submodules` argument of `actions/checkout`"
+        type: boolean
+        default: false
+      ref:
+        description: "Whether to checkout a custom branch/tag/commit for scanning other than the default branch"
+        type: string
+        default: ""
 
 jobs:
-  scan-scheduled:
-    uses: "google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.0.2"
-
+  osv-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          submodules: ${{ inputs.checkout-submodules }}
+          ref: ${{ inputs.ref }}
+      - name: "Download custom artifact if specified"
+        uses: actions/download-artifact@v4
+        if: "${{ inputs.download-artifact != '' }}"
+        with:
+          name: "${{ inputs.download-artifact }}"
+          path: "./"
+      - name: "Run scanner"
+        uses: google/osv-scanner-action/osv-scanner-action@8dded7155905cd666190a12dc9997000e58d163d # v2.0.2
+        with:
+          scan-args: |-
+            --output=${{ inputs.matrix-property }}results.json
+            --format=json
+            ${{ inputs.scan-args }}
+        continue-on-error: true
+      - name: "Run osv-scanner-reporter"
+        uses: google/osv-scanner-action/osv-reporter-action@8dded7155905cd666190a12dc9997000e58d163d # v2.0.2
+        with:
+          scan-args: |-
+            --output=${{ inputs.matrix-property }}${{ inputs.results-file-name }}
+            --new=${{ inputs.matrix-property }}results.json
+            --gh-annotations=false
+            --fail-on-vuln=${{ inputs.fail-on-vuln }}
+      # Upload the results as artifacts (optional). Commenting out will disable uploads of run results in SARIF
+      # format to the repository Actions tab.
+      - name: "Upload artifact"
+        id: "upload_artifact"
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ inputs.matrix-property }}SARIF file
+          path: ${{ inputs.matrix-property }}${{ inputs.results-file-name }}
+          retention-days: 5
+      # Upload the results to GitHub's code scanning dashboard.
+      - name: "Upload to code-scanning"
+        if: "${{ !cancelled() && inputs.upload-sarif == true }}"
+        uses: github/codeql-action/upload-sarif@45775bd8235c68ba998cffa5171334d58593da47 # v3.28.15
+        with:
+          sarif_file: ${{ inputs.matrix-property }}${{ inputs.results-file-name }}
+      - name: "Error troubleshooter"
+        if: ${{ always() && steps.upload_artifact.outcome == 'failure' }}
+        run: |
+          echo "::error::Artifact upload failed. This is most likely caused by a error during scanning earlier in the workflow."
+          exit 1
